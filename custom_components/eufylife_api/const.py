@@ -93,4 +93,10 @@ SENSOR_TYPES = {
         "unit": "%",
         "icon": "mdi:food-drumstick",
     },
+    "last_measurement_date": {
+        "name": "Last Measurement Date",
+        "device_class": "timestamp",
+        "unit": None,
+        "icon": "mdi:clock-outline",
+    },
 } 

@@ -25,6 +25,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     API_BASE_URL,
@@ -848,12 +849,16 @@ class EufyLifeSensorEntity(CoordinatorEntity, SensorEntity):
             if sensor_config["device_class"] == "weight":
                 self._attr_device_class = SensorDeviceClass.WEIGHT
                 self._attr_native_unit_of_measurement = UnitOfMass.KILOGRAMS
+            elif sensor_config["device_class"] == "timestamp":
+                self._attr_device_class = SensorDeviceClass.TIMESTAMP
             else:
                 self._attr_native_unit_of_measurement = sensor_config.get("unit")
         else:
             self._attr_native_unit_of_measurement = sensor_config.get("unit")
 
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+        # MEASUREMENT state class is invalid for timestamp sensors.
+        if sensor_config.get("device_class") != "timestamp":
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -867,7 +872,7 @@ class EufyLifeSensorEntity(CoordinatorEntity, SensorEntity):
         )
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> float | datetime | None:
         """Return the state of the sensor."""
         if not self.coordinator.data:
             _LOGGER.debug(
@@ -885,6 +890,13 @@ class EufyLifeSensorEntity(CoordinatorEntity, SensorEntity):
                 self.customer_id[:8],
             )
             return None
+
+        if self.sensor_type == "last_measurement_date":
+            last_update = customer_data.get("last_update")
+            if last_update is None:
+                return None
+            # Stored value is naive local time; make it tz-aware for HA.
+            return dt_util.as_local(last_update)
 
         value = customer_data.get(self.sensor_type)
 
